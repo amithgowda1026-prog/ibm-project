@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Game Strategy Advisor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1e2530;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #388bfd;
+    --accent2: #7c5cd8;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --orange: #e3703a;
+    --radius: 10px;
+    --font: -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #0d1b2a 0%, #1a2744 50%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .header-icon {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .header-icon svg { width: 26px; height: 26px; fill: #fff; }
+  header h1 { font-size: 20px; font-weight: 700; color: var(--text); }
+  header p { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .badge {
+    margin-left: auto;
+    background: rgba(56,139,253,.15);
+    border: 1px solid rgba(56,139,253,.35);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .4px;
+  }
+
+  /* ── Layout ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+  /* ── Input Panel ── */
+  .input-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 28px;
+  }
+  .input-panel h2 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  @media(max-width:700px){ .form-grid { grid-template-columns: 1fr; } }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 6px;
+  }
+  .form-group select,
+  .form-group input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: var(--font);
+    outline: none;
+    appearance: none;
+  }
+  .form-group select:focus,
+  .form-group input:focus { border-color: var(--accent); }
+
+  .btn-analyze {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: background .2s;
+  }
+  .btn-analyze:hover { background: #1f6feb; }
+  .btn-analyze svg { width: 16px; height: 16px; fill: #fff; }
+
+  /* ── Agent Pipeline Status ── */
+  .pipeline {
+    display: flex;
+    gap: 0;
+    margin-bottom: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .agent-step {
+    flex: 1;
+    padding: 14px 16px;
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+  .agent-step:last-child { border-right: none; }
+  .agent-step .step-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .agent-step .step-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .agent-step .step-status {
+    font-size: 11px;
+    margin-top: 3px;
+  }
+  .status-idle   { color: var(--muted); }
+  .status-running{ color: var(--yellow); }
+  .status-done   { color: var(--green); }
+  .status-error  { color: var(--red); }
+
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  .dot-idle    { background: var(--muted); }
+  .dot-running { background: var(--yellow); animation: pulse 1s infinite; }
+  .dot-done    { background: var(--green); }
+  .dot-error   { background: var(--red); }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; } 50% { opacity:.3; }
+  }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab-btn {
+    padding: 8px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all .2s;
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .tab-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .tag-match   { background: rgba(56,139,253,.2);  color: var(--accent); }
+  .tag-opp     { background: rgba(248,81,73,.2);   color: var(--red); }
+  .tag-strat   { background: rgba(63,185,80,.2);   color: var(--green); }
+  .tag-insight { background: rgba(124,92,216,.2);  color: var(--accent2); }
+
+  /* ── Stat Grid ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  @media(max-width:700px){ .stat-grid { grid-template-columns: 1fr 1fr; } }
+  .stat-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-box .stat-val {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .stat-box .stat-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 9px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid #21262d; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 9px 12px; color: var(--text); }
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .pill-green  { background: rgba(63,185,80,.2);  color: var(--green); }
+  .pill-red    { background: rgba(248,81,73,.2);  color: var(--red); }
+  .pill-yellow { background: rgba(210,153,34,.2); color: var(--yellow); }
+  .pill-blue   { background: rgba(56,139,253,.2); color: var(--accent); }
+  .pill-purple { background: rgba(124,92,216,.2); color: var(--accent2); }
+
+  /* ── Formation Viz ── */
+  .formation-wrap {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  @media(max-width:700px){ .formation-wrap { flex-direction: column; } }
+
+  .pitch {
+    background: #0a3d1a;
+    border: 2px solid #1e7a3c;
+    border-radius: 8px;
+    width: 220px;
+    min-width: 220px;
+    height: 310px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Pitch markings */
+  .pitch::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    width: 80%;
+    height: 1px;
+    background: rgba(255,255,255,.25);
+  }
+  .pitch-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.25);
+  }
+  .pitch-pen-top, .pitch-pen-bot {
+    position: absolute;
+    left: 20%;
+    width: 60%;
+    height: 50px;
+    border: 1px solid rgba(255,255,255,.25);
+  }
+  .pitch-pen-top { top: 0; border-top: none; }
+  .pitch-pen-bot { bottom: 0; border-bottom: none; }
+
+  .player-dot {
+    position: absolute;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px;
+    font-weight: 800;
+    color: #fff;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    border: 2px solid rgba(255,255,255,.4);
+    cursor: default;
+  }
+  .dot-blue  { background: #1a56c4; }
+  .dot-red   { background: #c41a1a; }
+  .dot-gk    { background: #d29922; }
+
+  .formation-details { flex: 1; }
+  .formation-details h3 { font-size: 22px; font-weight: 800; color: var(--accent); margin-bottom: 6px; }
+  .formation-details p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+  /* ── Progress Bars ── */
+  .bar-wrap { margin-bottom: 10px; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .bar-label span:first-child { color: var(--text); font-weight: 500; }
+  .bar-label span:last-child  { color: var(--muted); }
+  .bar-track {
+    height: 7px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    transition: width 1s ease;
+  }
+  .bar-fill.red    { background: var(--red); }
+  .bar-fill.green  { background: var(--green); }
+  .bar-fill.yellow { background: var(--yellow); }
+  .bar-fill.purple { background: var(--accent2); }
+
+  /* ── Bullet Lists ── */
+  .strat-list { list-style: none; padding: 0; }
+  .strat-list li {
+    padding: 8px 10px 8px 32px;
+    position: relative;
+    border-bottom: 1px solid #21262d;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .strat-list li:last-child { border-bottom: none; }
+  .strat-list li::before {
+    content: attr(data-icon);
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    font-size: 14px;
+  }
+
+  /* ── Alert Boxes ── */
+  .alert {
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    border-left: 4px solid;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert-info   { background: rgba(56,139,253,.1);  border-color: var(--accent);  color: #9ecbff; }
+  .alert-warn   { background: rgba(210,153,34,.1);  border-color: var(--yellow);  color: #e3b341; }
+  .alert-danger { background: rgba(248,81,73,.1);   border-color: var(--red);     color: #ff9492; }
+  .alert-succ   { background: rgba(63,185,80,.1);   border-color: var(--green);   color: #56d364; }
+  .alert .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Two-col ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media(max-width:700px){ .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Heatmap-style strength grid ── */
+  .heat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .heat-cell {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .heat-cell .hc-val { font-size: 20px; font-weight: 800; }
+  .heat-cell .hc-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .hc-high { color: var(--green); }
+  .hc-mid  { color: var(--yellow); }
+  .hc-low  { color: var(--red); }
+
+  /* ── Timeline ── */
+  .timeline { position: relative; padding-left: 20px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .tl-item {
+    position: relative;
+    padding: 0 0 16px 18px;
+  }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -14px; top: 5px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+  .tl-time { font-size: 11px; color: var(--accent); font-weight: 700; margin-bottom: 3px; }
+  .tl-text { font-size: 13px; color: var(--text); }
+
+  /* ── Missing data panel ── */
+  .missing-panel {
+    background: rgba(210,153,34,.08);
+    border: 1px solid rgba(210,153,34,.35);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .missing-panel h3 { color: var(--yellow); font-size: 14px; margin-bottom: 10px; }
+  .missing-panel ul { padding-left: 18px; }
+  .missing-panel ul li { font-size: 13px; color: #e3b341; margin-bottom: 5px; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header>
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+  </div>
+  <div>
+    <h1>AI Game Strategy Advisor</h1>
+    <p>Multi-Agent Tactical Intelligence Platform for Sports Coaches</p>
+  </div>
+  <div class="badge">4 Agents Active</div>
+</header>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="container">
+
+  <!-- ── Input Panel ── -->
+  <div class="input-panel">
+    <h2>🔍 Match Setup — Define Your Analysis Parameters</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Your Team</label>
+        <input type="text" id="myTeam" value="FC Dynamo" />
+      </div>
+      <div class="form-group">
+        <label>Opponent Team</label>
+        <input type="text" id="oppTeam" value="Red Eagles FC" />
+      </div>
+      <div class="form-group">
+        <label>Match Type</label>
+        <select id="matchType">
+          <option>League Match</option>
+          <option>Cup Final</option>
+          <option>Friendly</option>
+          <option>Playoff</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>My Team Formation</label>
+        <select id="myFormation">
+          <option>4-3-3</option>
+          <option>4-2-3-1</option>
+          <option>3-5-2</option>
+          <option>4-4-2</option>
+          <option>5-3-2</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Opponent Last Formation</label>
+        <select id="oppFormation">
+          <option>4-2-3-1</option>
+          <option>4-3-3</option>
+          <option>3-5-2</option>
+          <option>4-4-2</option>
+          <option>5-4-1</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Historical Matches to Analyze</label>
+        <select id="histMatches">
+          <option>Last 5 matches</option>
+          <option>Last 10 matches</option>
+          <option>Current Season</option>
+          <option>Last 2 Seasons</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-analyze" onclick="runAnalysis()">
+      <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+      Run Multi-Agent Analysis
+    </button>
+  </div>
+
+  <!-- ── Agent Pipeline ── -->
+  <div class="pipeline" id="pipeline">
+    <div class="agent-step" id="step1">
+      <div class="step-label">Agent 1</div>
+      <div class="step-name">Match Analysis Agent</div>
+      <div class="step-status status-idle"><span class="step-dot dot-idle"></span>Idle</div>
+    </div>
+    <div class="agent-step" id="step2">
+      <div class="step-label">Agent 2</div>
+      <div class="step-name">Opponent Strategy Agent</div>
+      <div class="step-status status-idle"><span class="step-dot dot-idle"></span>Idle</div>
+    </div>
+    <div class="agent-step" id="step3">
+      <div class="step-label">Agent 3</div>
+      <div class="step-name">Strategy Recommendation Agent</div>
+      <div class="step-status status-idle"><span class="step-dot dot-idle"></span>Idle</div>
+    </div>
+    <div class="agent-step" id="step4">
+      <div class="step-label">Agent 4</div>
+      <div class="step-name">Insight Explanation Agent</div>
+      <div class="step-status status-idle"><span class="step-dot dot-idle"></span>Idle</div>
+    </div>
+  </div>
+
+  <!-- ── Results (hidden until analysis runs) ── -->
+  <div id="results" style="display:none">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('tab-match')">📊 Match Analysis</button>
+      <button class="tab-btn" onclick="showTab('tab-opponent')">🎯 Opponent Strategy</button>
+      <button class="tab-btn" onclick="showTab('tab-gameplan')">🏆 Game Plan</button>
+      <button class="tab-btn" onclick="showTab('tab-insights')">💡 Coach Insights</button>
+    </div>
+
+    <!-- ════════ TAB 1: MATCH ANALYSIS ════════ -->
+    <div class="tab-panel active" id="tab-match">
+
+      <div class="stat-grid" id="statGrid">
+        <!-- filled by JS -->
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">📈 Recent Form (Last 5 Matches) <span class="tag tag-match">Match Analysis</span></div>
+          <table>
+            <thead><tr><th>Match</th><th>Score</th><th>Possession</th><th>Shots on Target</th><th>Result</th></tr></thead>
+            <tbody id="formTable"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title">⚖️ Head-to-Head Record</div>
+          <table>
+            <thead><tr><th>Season</th><th>Result</th><th>Goals</th><th>Venue</th></tr></thead>
+            <tbody id="h2hTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📉 Performance Metrics vs Opponent</div>
+        <div id="perfBars"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔑 Key Player Performance</div>
+        <table>
+          <thead><tr><th>Player</th><th>Position</th><th>Goals</th><th>Assists</th><th>Pass Acc.</th><th>Rating</th><th>Status</th></tr></thead>
+          <tbody id="playerTable"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /tab-match -->
+
+    <!-- ════════ TAB 2: OPPONENT STRATEGY ════════ -->
+    <div class="tab-panel" id="tab-opponent">
+
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠️</span>
+        <span>RAG Analysis based on last 10 matches of <strong id="oppName2">Red Eagles FC</strong>. Confidence: <strong>87%</strong>. Missing data flagged below.</span>
+      </div>
+
+      <div class="missing-panel" id="missingPanel">
+        <h3>⚠️ Missing / Insufficient Data</h3>
+        <ul>
+          <li>Injury list for opponent not available — assume full squad strength</li>
+          <li>Set-piece routine data limited to 3 recorded matches only</li>
+          <li>Opponent training footage not accessible — pressing triggers are estimated</li>
+        </ul>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">💪 Opponent Strengths <span class="tag tag-opp">RAG Detected</span></div>
+          <ul class="strat-list" id="oppStrengths"></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🩹 Opponent Weaknesses <span class="tag tag-opp">RAG Detected</span></div>
+          <ul class="strat-list" id="oppWeaknesses"></ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔄 Opponent Tactical Patterns (Last 10 Matches)</div>
+        <div class="heat-grid" id="heatGrid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎯 Opponent Key Threats — Players to Watch</div>
+        <table>
+          <thead><tr><th>Player</th><th>Position</th><th>Threat Type</th><th>Avg. Contribution</th><th>How to Neutralise</th></tr></thead>
+          <tbody id="threatTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📍 Opponent Playing Patterns</div>
+        <ul class="strat-list" id="oppPatterns"></ul>
+      </div>
+
+    </div><!-- /tab-opponent -->
+
+    <!-- ════════ TAB 3: GAME PLAN ════════ -->
+    <div class="tab-panel" id="tab-gameplan">
+
+      <div class="alert alert-succ">
+        <span class="alert-icon">✅</span>
+        <span>Strategy Recommendation Agent has generated a full game plan with <strong>95% confidence</strong> based on matched historical data patterns.</span>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">🔵 Recommended Formation <span class="tag tag-strat">Strategy Agent</span></div>
+          <div class="formation-wrap">
+            <div class="pitch" id="pitchViz">
+              <div class="pitch-circle"></div>
+              <div class="pitch-pen-top"></div>
+              <div class="pitch-pen-bot"></div>
+              <!-- dots injected by JS -->
+            </div>
+            <div class="formation-details" id="formationDetails"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📌 Formation Rationale</div>
+          <ul class="strat-list" id="formRationale"></ul>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">🛡️ Defensive Strategy</div>
+          <ul class="strat-list" id="defStrat"></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">⚔️ Attacking Strategy</div>
+          <ul class="strat-list" id="attStrat"></ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎯 Opponent Weaknesses to Target</div>
+        <table>
+          <thead><tr><th>Weakness</th><th>How to Exploit</th><th>Responsible Player(s)</th><th>Priority</th></tr></thead>
+          <tbody id="exploitTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔀 Tactical Changes During the Match</div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">👥 Set-Piece Strategies</div>
+        <div class="two-col">
+          <div>
+            <div style="font-weight:700;color:var(--accent);margin-bottom:8px;font-size:13px;">Corners (Attacking)</div>
+            <ul class="strat-list" id="cornerAtt"></ul>
+          </div>
+          <div>
+            <div style="font-weight:700;color:var(--red);margin-bottom:8px;font-size:13px;">Free Kicks (Defensive)</div>
+            <ul class="strat-list" id="fkDef"></ul>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-gameplan -->
+
+    <!-- ════════ TAB 4: COACH INSIGHTS ════════ -->
+    <div class="tab-panel" id="tab-insights">
+
+      <div class="card">
+        <div class="card-title">🧠 Executive Summary <span class="tag tag-insight">Insight Agent</span></div>
+        <p id="execSummary" style="font-size:14px;line-height:1.8;color:var(--text);"></p>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">✅ Key Actions for Coach — Pre-Match</div>
+          <ul class="strat-list" id="preMatch"></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🔁 In-Game Adjustments Watchlist</div>
+          <ul class="strat-list" id="inGame"></ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🚨 Risk Factors & Contingency Plans</div>
+        <table>
+          <thead><tr><th>Risk</th><th>Trigger Condition</th><th>Contingency</th><th>Severity</th></tr></thead>
+          <tbody id="riskTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Win Probability Assessment</div>
+        <div id="winProb"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔍 Data Confidence by Agent</div>
+        <div id="confBars"></div>
+      </div>
+
+    </div><!-- /tab-insights -->
+
+  </div><!-- /results -->
+
+</div><!-- /container -->
+
+<footer>Made with IBM Bob</footer>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  UTILITY
+// ═══════════════════════════════════════════════════
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function setStep(num, status) {
+  const step = document.getElementById('step' + num);
+  const statusEl = step.querySelector('.step-status');
+  const map = {
+    idle:    ['status-idle',    'dot-idle',    'Idle'],
+    running: ['status-running', 'dot-running', 'Processing…'],
+    done:    ['status-done',    'dot-done',    'Complete'],
+    error:   ['status-error',   'dot-error',   'Error'],
+  };
+  const [cls, dot, label] = map[status];
+  statusEl.className = 'step-status ' + cls;
+  statusEl.innerHTML = `<span class="step-dot ${dot}"></span>${label}`;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function pill(text, type) {
+  return `<span class="pill pill-${type}">${text}</span>`;
+}
+
+function bar(label, val, max, color) {
+  const pct = Math.round((val / max) * 100);
+  return `<div class="bar-wrap">
+    <div class="bar-label"><span>${label}</span><span>${val}</span></div>
+    <div class="bar-track"><div class="bar-fill ${color}" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  SIMULATED RAG DATA ENGINE
+// ═══════════════════════════════════════════════════
+function buildData(myTeam, oppTeam) {
+  return {
+    // ── Agent 1: Match Analysis ─────────────────
+    stats: [
+      { val: '8', lbl: 'Matches Analyzed', color: '#388bfd' },
+      { val: '58%', lbl: 'Avg Possession', color: '#3fb950' },
+      { val: '2.4', lbl: 'Avg Goals Scored', color: '#d29922' },
+      { val: '1.1', lbl: 'Avg Goals Conceded', color: '#f85149' },
+    ],
+    recentForm: [
+      { match: myTeam + ' vs Sporting CF', score: '3–1', poss: '62%', shots: 7, result: 'W' },
+      { match: myTeam + ' vs City United', score: '2–2', poss: '55%', shots: 5, result: 'D' },
+      { match: 'Metro FC vs ' + myTeam, score: '0–2', poss: '44%', shots: 4, result: 'W' },
+      { match: myTeam + ' vs River Town', score: '1–0', poss: '59%', shots: 6, result: 'W' },
+      { match: 'Blue Star vs ' + myTeam, score: '2–1', poss: '41%', shots: 3, result: 'L' },
+    ],
+    h2h: [
+      { season: '2024/25', result: 'Win',  goals: '2–0', venue: 'Home' },
+      { season: '2024/25', result: 'Draw', goals: '1–1', venue: 'Away' },
+      { season: '2023/24', result: 'Win',  goals: '3–1', venue: 'Home' },
+      { season: '2023/24', result: 'Loss', goals: '0–2', venue: 'Away' },
+    ],
+    perfMetrics: [
+      { label: 'Shots per Match',           val: 14, max: 20, color: 'blue' },
+      { label: 'Shots on Target',           val: 7,  max: 14, color: 'green' },
+      { label: 'Passes Completed',          val: 68, max: 100, color: 'blue' },
+      { label: 'Pressing Intensity (PPDA)', val: 7,  max: 15, color: 'purple' },
+      { label: 'xG (Expected Goals)',       val: 2.1, max: 4, color: 'yellow' },
+      { label: 'xGA (Expected Goals Against)', val: 0.9, max: 4, color: 'red' },
+    ],
+    players: [
+      { name: 'Marcus Rivera',  pos: 'ST',  g: 12, a: 4,  pass: '78%', rating: 8.1, status: 'Fit' },
+      { name: 'Luca Bianchi',   pos: 'CAM', g: 5,  a: 11, pass: '88%', rating: 7.9, status: 'Fit' },
+      { name: 'Ethan Cole',     pos: 'LW',  g: 7,  a: 5,  pass: '82%', rating: 7.6, status: 'Fit' },
+      { name: 'Jordan Hayes',   pos: 'CDM', g: 1,  a: 3,  pass: '91%', rating: 7.4, status: 'Doubtful' },
+      { name: 'Carlos Mendez',  pos: 'CB',  g: 2,  a: 0,  pass: '87%', rating: 7.3, status: 'Fit' },
+    ],
+
+    // ── Agent 2: Opponent Strategy ────────────────
+    oppStrengths: [
+      { icon: '⚡', text: 'Rapid counter-attacks through wide channels — avg 3.2 counter-attack opportunities per match' },
+      { icon: '🎯', text: 'Set-piece delivery is elite — 4 goals from corners in last 10 matches' },
+      { icon: '💪', text: 'Physical dominance in midfield duels — wins 64% of aerial contests' },
+      { icon: '🔗', text: 'Strong defensive shape in 4-2-3-1 low-block — hard to break down' },
+      { icon: '🌊', text: 'High pressing triggers in opponent\'s GK zone — forces long balls' },
+    ],
+    oppWeaknesses: [
+      { icon: '🩹', text: 'Vulnerable on left flank — left-back averages 2.1 dribbles beaten per match' },
+      { icon: '🕳️', text: 'Space behind midfield exposed when they press high — 3.8 counter-press failures/match' },
+      { icon: '🎱', text: 'Poor aerial defending on far-post corners — conceded 3 from this zone' },
+      { icon: '⏱️', text: 'Fatigue visible after 65 minutes — pressing drops significantly in last 25 mins' },
+      { icon: '🔄', text: 'Transitions slow after losing ball in attack — 4.2 seconds avg recovery time' },
+    ],
+    heatData: [
+      { val: '68%', lbl: 'Low Block Usage',     cls: 'hc-mid' },
+      { val: '3.2',  lbl: 'Counter Attacks/Game', cls: 'hc-high' },
+      { val: '42%', lbl: 'Left Flank Attacks',  cls: 'hc-mid' },
+      { val: '4.1',  lbl: 'Set Pieces/Game',     cls: 'hc-high' },
+      { val: '78%', lbl: 'Defensive Shape Hold', cls: 'hc-high' },
+      { val: '1.4',  lbl: 'Goals from Open Play', cls: 'hc-low' },
+    ],
+    threats: [
+      { name: 'Diego Vargas',   pos: 'CF',  threat: 'Finishing',      contrib: '0.72 xG/game', counter: 'Tight man-marking; deny ball to feet' },
+      { name: 'Nabil Osei',     pos: 'LM',  threat: 'Pace / Dribbling', contrib: '2.3 key passes/game', counter: 'Double up on right side; no room to run' },
+      { name: 'Tomas Kramer',   pos: 'CDM', threat: 'Pressing Trigger', contrib: '6.1 ball recoveries/game', counter: 'Play quickly through or over him; switch play' },
+      { name: 'Viktor Sorokin', pos: 'CB',  threat: 'Set-Piece Aerial', contrib: '1.8 headed clearances', counter: 'Use near-post flick-ons; pull him wide' },
+    ],
+    oppPatterns: [
+      { icon: '🔴', text: 'Build-up always starts from GK — right CB carries ball to trigger press; then switch to left' },
+      { icon: '🔴', text: 'Winger Nabil Osei cuts inside from left — always looks for diagonal run behind defence' },
+      { icon: '🔴', text: '4-2-3-1 drops to 6-3-1 in defensive transition — very compact; attacks through set-pieces' },
+      { icon: '🔴', text: 'Free-kick routine: dummy run over ball → low driven ball to near post for flick-on' },
+      { icon: '🔴', text: 'High press triggered only when GK has ball or CB receives under pressure — avoidable' },
+    ],
+
+    // ── Agent 3: Strategy Recommendation ──────────
+    recommendedFormation: '4-3-3',
+    formDesc: 'A dynamic 4-3-3 with a high pressing structure, asymmetric wide attacks to exploit the opponent\'s weak left-back, and a solid mid-block preventing counter-attacks.',
+    formRationale: [
+      { icon: '✅', text: 'Numerical advantage in midfield counters opponent\'s 4-2-3-1 press' },
+      { icon: '✅', text: 'Right-winger creates overload on opponent\'s weaker left flank consistently' },
+      { icon: '✅', text: 'High defensive line catches opponent offside during counter-attacks' },
+      { icon: '✅', text: 'Central striker drops deep to link play and stretch the 2-pivot midfield' },
+      { icon: '✅', text: 'Full-backs push high when in possession to create wide overloads' },
+    ],
+    defStrat: [
+      { icon: '🛡️', text: 'Mid-block at 4-4-2 shape when out of possession — compact, limit space between lines' },
+      { icon: '🛡️', text: 'Trigger press when opponent\'s right CB has the ball — easiest interception zone' },
+      { icon: '🛡️', text: 'Double-mark Nabil Osei (LM) with right-back + right-winger — deny him space' },
+      { icon: '🛡️', text: 'Zonal marking on corners — assign tallest player (Mendez) to far-post coverage' },
+      { icon: '🛡️', text: 'Stay compact after 60 mins — opponent loses energy; absorb and hit on the break' },
+      { icon: '🛡️', text: 'GK to play quickly from back — avoid opponent press trigger; short pass to CDM' },
+    ],
+    attStrat: [
+      { icon: '⚔️', text: 'Overload left flank — exploit opponent\'s weakest defender with pace of Ethan Cole' },
+      { icon: '⚔️', text: 'Quick vertical passes through midfield to bypass the high press — 3-touch maximum' },
+      { icon: '⚔️', text: 'Rivera drops deep to receive, turn, and drive at defensive line — exploits slow recovery' },
+      { icon: '⚔️', text: 'Bianchi to operate between opponent\'s defensive and midfield lines — find gaps' },
+      { icon: '⚔️', text: 'After 65 mins — increase tempo and direct play; opponent fatigue peaks here' },
+      { icon: '⚔️', text: 'Far-post corners: Mendez\'s runs from deep — opponent vulnerable to this exact zone' },
+    ],
+    exploitTable: [
+      { weakness: 'Weak Left-Back', how: 'Cole 1v1 runs, early crossing', players: 'E. Cole, M. Rivera', priority: 'HIGH' },
+      { weakness: 'Space Behind Press', how: 'Long switch passes, diagonal balls', players: 'L. Bianchi, J. Hayes', priority: 'HIGH' },
+      { weakness: 'Far-Post Corners', how: 'Bespoke corner routine — deep run', players: 'C. Mendez', priority: 'MEDIUM' },
+      { weakness: 'Post-65min Fatigue', how: 'Increased pressing, direct play', players: 'All forwards', priority: 'HIGH' },
+      { weakness: 'Slow Transitions', how: 'Win ball in midfield, quick counter', players: 'M. Rivera, E. Cole', priority: 'MEDIUM' },
+    ],
+    timeline: [
+      { time: '0–20 min', text: 'Settle into mid-block. Study opponent movements. Allow possession, absorb pressure.' },
+      { time: '20–45 min', text: 'Increase pressing on opponent\'s right CB. Begin wide overloads on left flank via Cole.' },
+      { time: '45–60 min', text: 'If leading: protect with 4-5-1. If drawing: maintain 4-3-3 and seek attacking overloads.' },
+      { time: '60–75 min', text: 'Opponent fatigue window. Push full-backs higher. Increase tempo. Exploit left flank heavily.' },
+      { time: '75–90+ min', text: 'If winning: drop to 5-3-2, preserve result. If losing: push to 3-5-2, go direct, use height.' },
+    ],
+    cornerAtt: [
+      { icon: '🟦', text: 'Near-post decoy run by Rivera — pulls central defenders forward' },
+      { icon: '🟦', text: 'Mendez timed far-post run — arrives late from edge of box' },
+      { icon: '🟦', text: 'Alternative: Short corner to Bianchi — cut back to edge for shooting' },
+    ],
+    fkDef: [
+      { icon: '🟥', text: 'Zonal wall of 4 — block near post; Mendez jumps highest at far post' },
+      { icon: '🟥', text: 'Do not follow dummy runners — watch the actual delivery path' },
+      { icon: '🟥', text: 'GK calls command and takes ownership of anything in 6-yard box' },
+    ],
+
+    // ── Agent 4: Insights ───────────────────────
+    summary: `Based on RAG analysis of ${myTeam}'s last 8 matches and ${oppTeam}'s last 10 matches, our recommendation is a high-confidence 4-3-3 formation that directly exploits the opponent's structural weaknesses while neutralising their key threats.
+
+The critical opportunity lies on <strong>the opponent's left flank</strong> where their left-back averages 2.1 dribbles beaten per match. Deploying Ethan Cole with aggressive 1v1 play will create the majority of chances. Additionally, the opponent's fatigue pattern after the 65th minute is a reliable data-backed window to push for goals.
+
+The biggest defensive risk is Diego Vargas (opponent CF) who accumulates 0.72 xG per game — he must be tightly marked and isolated. The CDM Jordan Hayes is listed as doubtful; if unavailable, switch to a 4-2-3-1 with a double pivot for added defensive stability.`,
+
+    preMatch: [
+      { icon: '📋', text: 'Brief players on Nabil Osei\'s inside cut movement — assign right-back to shadow' },
+      { icon: '📋', text: 'Practice the far-post corner routine in training — Mendez deep run timing is critical' },
+      { icon: '📋', text: 'Confirm Hayes fitness; prepare 4-2-3-1 backup if he cannot start' },
+      { icon: '📋', text: 'Discuss opponent press triggers — drill quick 3-touch build-up through midfield' },
+      { icon: '📋', text: 'Motivational emphasis: We\'ve won 3 of last 4 H2H — confidence is justified' },
+    ],
+    inGame: [
+      { icon: '👁️', text: 'Watch if opponent shifts to 5-4-1 after 60 min — signals fatigue; press harder' },
+      { icon: '👁️', text: 'If Vargas drops deep, push CB line higher to compress space' },
+      { icon: '👁️', text: 'Monitor Cole\'s duel success — if losing duels, switch focus to centre channels' },
+      { icon: '👁️', text: 'Track pressing intensity decay — if opponent PPDA rises above 12, begin counter-press' },
+      { icon: '👁️', text: 'Watch for Kramer fatigue — pivot play around him after 70 min' },
+    ],
+    risks: [
+      { risk: 'Hayes unavailable', trigger: 'Not listed on teamsheet', contingency: 'Switch to 4-2-3-1 double pivot', sev: 'HIGH' },
+      { risk: 'Opponent changes to 3-5-2', trigger: 'Seen after first substitution', contingency: 'Adjust to 4-5-1 shape', sev: 'MED' },
+      { risk: 'Cole ineffective on left', trigger: '<1 successful dribble in 30 min', contingency: 'Switch Cole to right; bring on sub LW', sev: 'MED' },
+      { risk: 'Early goal conceded', trigger: 'Lose goal in first 20 min', contingency: 'Abandon mid-block; push to 4-3-3 high press immediately', sev: 'HIGH' },
+    ],
+    winProb: [
+      { label: myTeam + ' Win', val: 54, color: 'green' },
+      { label: 'Draw', val: 22, color: 'yellow' },
+      { label: oppTeam + ' Win', val: 24, color: 'red' },
+    ],
+    confidence: [
+      { label: 'Match Analysis Agent',           val: 91, color: 'blue' },
+      { label: 'Opponent Strategy Agent',        val: 87, color: 'purple' },
+      { label: 'Strategy Recommendation Agent',  val: 95, color: 'green' },
+      { label: 'Insight Explanation Agent',      val: 89, color: 'yellow' },
+    ],
+  };
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════
+function renderMatchAnalysis(d) {
+  // Stat Grid
+  document.getElementById('statGrid').innerHTML = d.stats.map(s =>
+    `<div class="stat-box"><div class="stat-val" style="color:${s.color}">${s.val}</div><div class="stat-lbl">${s.lbl}</div></div>`
+  ).join('');
+
+  // Form table
+  document.getElementById('formTable').innerHTML = d.recentForm.map(r => {
+    const rc = r.result === 'W' ? 'green' : r.result === 'D' ? 'yellow' : 'red';
+    return `<tr><td>${r.match}</td><td><strong>${r.score}</strong></td><td>${r.poss}</td><td>${r.shots}</td><td>${pill(r.result, rc)}</td></tr>`;
+  }).join('');
+
+  // H2H table
+  document.getElementById('h2hTable').innerHTML = d.h2h.map(h => {
+    const rc = h.result === 'Win' ? 'green' : h.result === 'Draw' ? 'yellow' : 'red';
+    return `<tr><td>${h.season}</td><td>${pill(h.result, rc)}</td><td>${h.goals}</td><td>${h.venue}</td></tr>`;
+  }).join('');
+
+  // Perf bars
+  document.getElementById('perfBars').innerHTML = d.perfMetrics.map(m =>
+    bar(m.label, m.val, m.max, m.color)
+  ).join('');
+
+  // Player table
+  document.getElementById('playerTable').innerHTML = d.players.map(p => {
+    const sc = p.status === 'Fit' ? 'green' : 'yellow';
+    return `<tr><td><strong>${p.name}</strong></td><td>${pill(p.pos, 'blue')}</td><td>${p.g}</td><td>${p.a}</td><td>${p.pass}</td><td>${p.rating}</td><td>${pill(p.status, sc)}</td></tr>`;
+  }).join('');
+}
+
+function renderOpponentStrategy(d, oppTeam) {
+  document.getElementById('oppName2').textContent = oppTeam;
+
+  document.getElementById('oppStrengths').innerHTML = d.oppStrengths.map(s =>
+    `<li data-icon="${s.icon}">${s.text}</li>`).join('');
+
+  document.getElementById('oppWeaknesses').innerHTML = d.oppWeaknesses.map(s =>
+    `<li data-icon="${s.icon}">${s.text}</li>`).join('');
+
+  document.getElementById('heatGrid').innerHTML = d.heatData.map(h =>
+    `<div class="heat-cell"><div class="hc-val ${h.cls}">${h.val}</div><div class="hc-lbl">${h.lbl}</div></div>`
+  ).join('');
+
+  document.getElementById('threatTable').innerHTML = d.threats.map(t =>
+    `<tr><td><strong>${t.name}</strong></td><td>${pill(t.pos, 'blue')}</td><td>${pill(t.threat, 'red')}</td><td>${t.contrib}</td><td>${t.counter}</td></tr>`
+  ).join('');
+
+  document.getElementById('oppPatterns').innerHTML = d.oppPatterns.map(p =>
+    `<li data-icon="${p.icon}">${p.text}</li>`).join('');
+}
+
+function renderGamePlan(d) {
+  document.getElementById('formationDetails').innerHTML =
+    `<h3>${d.recommendedFormation}</h3><p>${d.formDesc}</p>`;
+
+  // Formation dots (4-3-3 layout on pitch)
+  const pitch = document.getElementById('pitchViz');
+  const dots433 = [
+    // GK
+    { x: 50, y: 92, pos: 'GK', cls: 'dot-gk' },
+    // Defenders
+    { x: 15, y: 75, pos: 'LB', cls: 'dot-blue' },
+    { x: 35, y: 75, pos: 'CB', cls: 'dot-blue' },
+    { x: 65, y: 75, pos: 'CB', cls: 'dot-blue' },
+    { x: 85, y: 75, pos: 'RB', cls: 'dot-blue' },
+    // Midfielders
+    { x: 20, y: 52, pos: 'CM', cls: 'dot-blue' },
+    { x: 50, y: 50, pos: 'CM', cls: 'dot-blue' },
+    { x: 80, y: 52, pos: 'CM', cls: 'dot-blue' },
+    // Forwards
+    { x: 15, y: 22, pos: 'LW', cls: 'dot-red' },
+    { x: 50, y: 15, pos: 'ST', cls: 'dot-red' },
+    { x: 85, y: 22, pos: 'RW', cls: 'dot-red' },
+  ];
+  dots433.forEach(dot => {
+    const el = document.createElement('div');
+    el.className = `player-dot ${dot.cls}`;
+    el.style.left = dot.x + '%';
+    el.style.top = dot.y + '%';
+    el.title = dot.pos;
+    el.textContent = dot.pos.substring(0,2);
+    pitch.appendChild(el);
+  });
+
+  document.getElementById('formRationale').innerHTML = d.formRationale.map(r =>
+    `<li data-icon="${r.icon}">${r.text}</li>`).join('');
+
+  document.getElementById('defStrat').innerHTML = d.defStrat.map(s =>
+    `<li data-icon="${s.icon}">${s.text}</li>`).join('');
+
+  document.getElementById('attStrat').innerHTML = d.attStrat.map(s =>
+    `<li data-icon="${s.icon}">${s.text}</li>`).join('');
+
+  document.getElementById('exploitTable').innerHTML = d.exploitTable.map(e => {
+    const pc = e.priority === 'HIGH' ? 'red' : 'yellow';
+    return `<tr><td><strong>${e.weakness}</strong></td><td>${e.how}</td><td>${e.players}</td><td>${pill(e.priority, pc)}</td></tr>`;
+  }).join('');
+
+  document.getElementById('timeline').innerHTML = d.timeline.map(t =>
+    `<div class="tl-item"><div class="tl-time">${t.time}</div><div class="tl-text">${t.text}</div></div>`
+  ).join('');
+
+  document.getElementById('cornerAtt').innerHTML = d.cornerAtt.map(c =>
+    `<li data-icon="${c.icon}">${c.text}</li>`).join('');
+  document.getElementById('fkDef').innerHTML = d.fkDef.map(c =>
+    `<li data-icon="${c.icon}">${c.text}</li>`).join('');
+}
+
+function renderInsights(d) {
+  document.getElementById('execSummary').innerHTML = d.summary;
+
+  document.getElementById('preMatch').innerHTML = d.preMatch.map(p =>
+    `<li data-icon="${p.icon}">${p.text}</li>`).join('');
+
+  document.getElementById('inGame').innerHTML = d.inGame.map(p =>
+    `<li data-icon="${p.icon}">${p.text}</li>`).join('');
+
+  document.getElementById('riskTable').innerHTML = d.risks.map(r => {
+    const sc = r.sev === 'HIGH' ? 'red' : 'yellow';
+    return `<tr><td><strong>${r.risk}</strong></td><td>${r.trigger}</td><td>${r.contingency}</td><td>${pill(r.sev, sc)}</td></tr>`;
+  }).join('');
+
+  document.getElementById('winProb').innerHTML = d.winProb.map(w =>
+    bar(w.label, w.val, 100, w.color)).join('');
+
+  document.getElementById('confBars').innerHTML = d.confidence.map(c =>
+    bar(c.label, c.val, 100, c.color)).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  MAIN ANALYSIS RUNNER
+// ═══════════════════════════════════════════════════
+async function runAnalysis() {
+  const myTeam  = document.getElementById('myTeam').value || 'FC Dynamo';
+  const oppTeam = document.getElementById('oppTeam').value || 'Red Eagles FC';
+
+  const btn = document.querySelector('.btn-analyze');
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+
+  // Reset steps
+  [1,2,3,4].forEach(n => setStep(n, 'idle'));
+  document.getElementById('results').style.display = 'none';
+
+  // ── Agent 1 ──
+  setStep(1, 'running');
+  await sleep(1200);
+  setStep(1, 'done');
+
+  // ── Agent 2 ──
+  setStep(2, 'running');
+  await sleep(1400);
+  setStep(2, 'done');
+
+  // ── Agent 3 ──
+  setStep(3, 'running');
+  await sleep(1100);
+  setStep(3, 'done');
+
+  // ── Agent 4 ──
+  setStep(4, 'running');
+  await sleep(900);
+  setStep(4, 'done');
+
+  // Build & render
+  const data = buildData(myTeam, oppTeam);
+  renderMatchAnalysis(data);
+  renderOpponentStrategy(data, oppTeam);
+  renderGamePlan(data);
+  renderInsights(data);
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#fff"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg> Run Multi-Agent Analysis`;
+}
+</script>
+</body>
+</html>
